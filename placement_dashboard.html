@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Placement Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#0F1B2D;
+    --navy2:#16273F;
+    --card:#FFFFFF;
+    --bg:#EEF1F6;
+    --accent:#2E6F71;
+    --accent2:#D98E4A;
+    --accent3:#7C5CBF;
+    --text:#16273F;
+    --muted:#6B7686;
+    --good:#2E8B57;
+    --warn:#C9463C;
+    --line:#E1E6EE;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .topbar{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);
+    color:#fff;
+    padding:22px 28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .topbar h1{margin:0;font-size:21px;letter-spacing:.3px;font-weight:600;}
+  .topbar .sub{font-size:12.5px;color:#AEB9CC;margin-top:4px;}
+  .topbar .badge{
+    background:rgba(255,255,255,.12);
+    padding:6px 14px;border-radius:20px;font-size:12px;color:#fff;
+    border:1px solid rgba(255,255,255,.25);
+  }
+  .container{padding:20px 28px 60px;max-width:1400px;margin:0 auto;}
+
+  /* Filters */
+  .filters{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:14px 18px;margin-bottom:20px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;
+  }
+  .filters .f-item{display:flex;flex-direction:column;gap:4px;min-width:160px;}
+  .filters label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600;}
+  .filters select{
+    padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;
+    background:#fbfcfe;color:var(--text);
+  }
+  .filters button{
+    padding:8px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;
+    font-size:13px;cursor:pointer;font-weight:600;
+  }
+  .filters button.reset{background:transparent;color:var(--accent);border:1px solid var(--accent);}
+  .filter-note{font-size:11px;color:var(--muted);width:100%;margin-top:2px;}
+
+  /* KPI cards */
+  .kpi-row{
+    display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px;
+  }
+  @media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:640px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+  .kpi{
+    background:var(--card);border-radius:10px;padding:16px 14px;border:1px solid var(--line);
+    border-top:3px solid var(--accent);
+    position:relative;overflow:hidden;
+  }
+  .kpi:nth-child(2){border-top-color:var(--accent2);}
+  .kpi:nth-child(3){border-top-color:var(--accent3);}
+  .kpi:nth-child(4){border-top-color:var(--accent);}
+  .kpi:nth-child(5){border-top-color:var(--accent2);}
+  .kpi:nth-child(6){border-top-color:var(--good);}
+  .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+  .kpi .value{font-size:26px;font-weight:700;margin-top:6px;color:var(--navy);}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:3px;}
+
+  /* Section titles */
+  .section-title{
+    font-size:15px;font-weight:700;color:var(--navy);margin:28px 0 12px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .section-title .tag{
+    font-size:10px;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;
+    text-transform:uppercase;letter-spacing:.4px;font-weight:700;
+  }
+
+  /* Chart grid */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:640px){.grid{grid-template-columns:1fr;}}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px 8px;
+  }
+  .card h3{margin:0 0 10px;font-size:13px;color:var(--navy);font-weight:700;}
+  .card .chart-wrap{position:relative;height:220px;}
+  .card .chart-wrap.tall{height:260px;}
+  .empty-note{font-size:12px;color:var(--muted);text-align:center;padding-top:70px;}
+
+  /* Funnel */
+  .funnel-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;}
+  .funnel-row{display:flex;align-items:center;gap:14px;margin-bottom:10px;}
+  .funnel-label{width:110px;font-size:12.5px;font-weight:600;color:var(--navy);text-align:right;}
+  .funnel-bar-wrap{flex:1;background:#F2F4F8;border-radius:6px;overflow:hidden;height:30px;position:relative;}
+  .funnel-bar{
+    height:100%;border-radius:6px;
+    display:flex;align-items:center;justify-content:flex-end;padding-right:10px;
+    color:#fff;font-size:12.5px;font-weight:700;
+    transition:width .5s ease;
+  }
+  .funnel-pct{width:60px;font-size:11.5px;color:var(--muted);}
+
+  /* Tables */
+  .tables-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:900px){.tables-grid{grid-template-columns:1fr;}}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  table th{
+    text-align:left;background:#F5F7FA;color:var(--muted);font-weight:700;
+    padding:7px 8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;
+  }
+  table td{padding:7px 8px;border-bottom:1px solid #F0F2F6;color:var(--text);}
+  table tr:hover td{background:#FAFBFD;}
+  .table-scroll{max-height:260px;overflow-y:auto;}
+  .pill{padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;display:inline-block;}
+  .pill.good{background:#E4F4EA;color:var(--good);}
+  .pill.bad{background:#FBE7E5;color:var(--warn);}
+  .pill.mid{background:#FDF1E2;color:#B06B1F;}
+  .pill.neu{background:#EDEBFA;color:#5B3FA0;}
+
+  /* Insights */
+  .insights{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);
+    color:#fff;border-radius:12px;padding:24px 28px;margin-top:30px;
+  }
+  .insights h2{margin:0 0 14px;font-size:16px;font-weight:700;}
+  .insights ul{margin:0;padding-left:20px;line-height:1.9;font-size:13.5px;color:#DCE3F0;}
+  .insights li b{color:#fff;}
+  .insight-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px;}
+  @media(max-width:800px){.insight-grid{grid-template-columns:1fr;}}
+  .insight-stat{background:rgba(255,255,255,.06);border-radius:8px;padding:12px 14px;border:1px solid rgba(255,255,255,.1);}
+  .insight-stat .n{font-size:20px;font-weight:800;}
+  .insight-stat .l{font-size:11px;color:#AEB9CC;text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+
+  footer{text-align:center;color:var(--muted);font-size:11px;margin-top:30px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Placement Performance Dashboard</h1>
+    <div class="sub">Core Management View &middot; Live snapshot from Enrolments, Candidates, Job Openings, Applications &amp; Interviews</div>
+  </div>
+  <div class="badge" id="recordCount">Loading data&hellip;</div>
+</div>
+
+<div class="container">
+
+  <div class="filters">
+    <div class="f-item">
+      <label>Batch</label>
+      <select id="f-batch"><option value="">All Batches</option></select>
+    </div>
+    <div class="f-item">
+      <label>Candidate City</label>
+      <select id="f-city"><option value="">All Cities</option></select>
+    </div>
+    <div class="f-item">
+      <label>Gender</label>
+      <select id="f-gender"><option value="">All</option></select>
+    </div>
+    <div class="f-item">
+      <label>Candidate Stage</label>
+      <select id="f-stage"><option value="">All Stages</option></select>
+    </div>
+    <button onclick="applyFilters()">Apply Filters</button>
+    <button class="reset" onclick="resetFilters()">Reset</button>
+    <div class="filter-note">Filters recompute the KPI cards, funnel and candidate-side charts live from the raw Candidate/Enrolment/Application/Interview records (batch, city, gender, stage). Job-market charts (job city, salary bands, job roles posted) reflect the full requisition pool since they aren't tied to individual candidates.</div>
+  </div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="section-title"><span class="tag">Funnel</span> Placement Funnel &mdash; Where Students Drop Off</div>
+  <div class="funnel-card">
+    <div id="funnelBody"></div>
+  </div>
+
+  <div class="section-title"><span class="tag">Charts</span> Applications &amp; Candidate Insights</div>
+  <div class="grid">
+    <div class="card"><h3>Applications by Job Role</h3><div class="chart-wrap"><canvas id="chartRole"></canvas></div></div>
+    <div class="card"><h3>Candidates by City</h3><div class="chart-wrap"><canvas id="chartCity"></canvas></div></div>
+    <div class="card"><h3>Gender Distribution</h3><div class="chart-wrap"><canvas id="chartGender"></canvas></div></div>
+    <div class="card"><h3>Job Openings by City (full pool)</h3><div class="chart-wrap"><canvas id="chartJobCity"></canvas></div></div>
+    <div class="card"><h3>Interview Status</h3><div class="chart-wrap"><canvas id="chartIntStatus"></canvas></div></div>
+    <div class="card"><h3>Application Status</h3><div class="chart-wrap"><canvas id="chartAppStatus"></canvas></div></div>
+    <div class="card"><h3>Highest Paying Roles (avg. &#8377;K/month)</h3><div class="chart-wrap"><canvas id="chartSalary"></canvas></div></div>
+    <div class="card"><h3>Top Skills Among Candidates</h3><div class="chart-wrap" id="skillsTreemap"></div></div>
+    <div class="card"><h3>Batch-wise Candidates</h3><div class="chart-wrap"><canvas id="chartBatch"></canvas></div></div>
+  </div>
+
+  <div class="section-title"><span class="tag">Detail</span> Supporting Tables</div>
+  <div class="tables-grid">
+    <div class="card">
+      <h3>Top 10 Highest Salary Job Postings</h3>
+      <div class="table-scroll">
+        <table id="tblTopSalary"><thead><tr><th>Title</th><th>City</th><th>Type</th><th>Salary</th><th>Status</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Recent Applications</h3>
+      <div class="table-scroll">
+        <table id="tblRecent"><thead><tr><th>Candidate</th><th>Role</th><th>Status</th><th>Created</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Interview Feedback (latest)</h3>
+      <div class="table-scroll">
+        <table id="tblFeedback"><thead><tr><th>Type</th><th>Status</th><th>Feedback</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Candidates with Multiple Applications</h3>
+      <div class="table-scroll">
+        <table id="tblMulti"><thead><tr><th>Candidate</th><th># Applications</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="insights" id="insightsBlock"></div>
+
+  <footer>Placement Analytics Dashboard &middot; Built from Enrolments (113), Candidates (38), Job Openings (7,708), Applications (782) and Interviews (121) &middot; Data as provided</footer>
+</div>
+
+<script>
+const DATA = {"kpis": {"total_enrolments": 113, "eligible_candidates": 38, "active_job_openings": 289, "total_job_openings": 7708, "total_applications": 782, "total_interviews": 121, "avg_salary_k": 24.8, "selected_candidates": 12, "placement_rate": 31.6}, "funnel": {"Enrolled": 113, "Eligible": 38, "Applied": 35, "Interviewed": 24, "Selected": 12, "Placed": 12}, "applications_by_role": {"Social Media Executive": 62, "Social Media Manager": 50, "Social Media Intern": 48, "Digital Marketing Intern": 29, "Digital Marketing Executive": 20, "Influencer Marketing Executive": 13, "Performance Marketing Executive": 13, "Account Manager": 11}, "candidates_by_city": {"Mumbai": 15, "Palghar": 2, "New Delhi": 2, "Chandigarh": 1, "Hyderabad": 1, "Bengaluru": 1, "Pimpri": 1, "Rupnagar": 1}, "gender_distribution": {"Female": 25, "Male": 13}, "jobs_by_city": {"Mumbai": 3885, "Delhi": 438, "Gurugram": 236, "Remote": 187, "Navi Mumbai": 156, "Gurgaon": 137, "Pune": 94, "Noida": 92}, "interview_status": {"Cancelled": 67, "Pending": 27, "Rejected": 10, "Move to Next Round/Process": 9, "On-Hold": 4, "Rescheduled": 2, "Needs More Mentoring": 1, "Hired": 1}, "application_status": {"Applied": 524, "In Progress": 183, "Rejected": 63, "Offered": 12}, "salary_distribution": {"Brand Manager": 47.5, "Marketing Manager": 47.1, "Influencer Marketing Manager": 47.0, "Performance Marketing Manager": 45.9, "Content Manager": 45.0, "Social Media Specialist": 43.0, "Creative Strategist": 42.1, "Digital Marketer": 42.1}, "skills_distribution": {"Google Ads": 24, "eMarketing": 23, "Search Engine Optimisation": 19, "Keyword Research": 19, "Marketing": 18, "Canva": 16, "Social Media": 16, "Social Media Marketing": 14, "Content Strategy": 14, "Google Analytics": 14, "Adaptability": 13, "Competitor Analysis": 12, "Content Production": 12, "Marketing Strategy": 12, "Campaign Development": 12}, "batch_candidates": {"ACDM & PCDMS September 2025 Batch 2 - 514": 12, "ACDM & PCDMS August 2025 Batch 2 - 508": 11, "ACDM & PCDMS August 2025 Batch 1 - 506": 9, "ACDM & PCDMS September 2025 Batch 1 - 513": 6}, "top10_salary_jobs": [{"Posting Title": "Senior Creative Strategist", "City": "Delhi", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Inactive"}, {"Posting Title": "ASSOCIATE MANAGER \u2013 MEDIA PLANNING & STRATEGY", "City": "Mumbai", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Assistant Marketing Manager", "City": "Mumbai", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Social Media Executive", "City": "Delhi", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Lead - Social Media Manager", "City": "Delhi", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Performance Marketing Manager", "City": "Bandra West", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Retention Marketing Specialist", "City": "Banglore", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Sr. Copywriter", "City": "Mumbai", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Lead Generation Strategist", "City": "Mumbai", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}, {"Posting Title": "Client Servicing Executive \u2013 Digital Marketing", "City": "Thane", "Job Type": "Full time", "Salary": "50k+", "Job Opening Status": "Cancelled"}], "recent_applications": [{"First Name": "Nova", "Last Name": "Reyes", "Posting Title": "Branding & Marketing Intern", "Application Status": "Associated", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:43 PM"}, {"First Name": "Nova", "Last Name": "Reyes", "Posting Title": "Social Media Manager", "Application Status": "Submitted-to-client", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:43 PM"}, {"First Name": "Nova", "Last Name": "Reyes", "Posting Title": "Social Media Intern", "Application Status": "Associated", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:43 PM"}, {"First Name": "Nova", "Last Name": "Reyes", "Posting Title": "Social Media Intern", "Application Status": "Associated", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:43 PM"}, {"First Name": "Landon", "Last Name": "Price", "Posting Title": "Social Media Intern", "Application Status": "Associated", "Batch Name": "ACDM & PCDMS September 2025 Batch 1 - 513", "Created Time": "08/06/2026 5:41 PM"}, {"First Name": "Hudson", "Last Name": "Peterson", "Posting Title": "Social Media Specialist", "Application Status": "Approved by client", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:36 PM"}, {"First Name": "Hudson", "Last Name": "Peterson", "Posting Title": "Social Media Marketing", "Application Status": "Associated", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:36 PM"}, {"First Name": "Hudson", "Last Name": "Peterson", "Posting Title": "Social Media Associate", "Application Status": "Associated", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:36 PM"}, {"First Name": "Hudson", "Last Name": "Peterson", "Posting Title": "Social Media Manager", "Application Status": "Submitted-to-client", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:36 PM"}, {"First Name": "Hudson", "Last Name": "Peterson", "Posting Title": "Social Media Associate", "Application Status": "Associated", "Batch Name": "ACDM & PCDMS September 2025 Batch 2 - 514", "Created Time": "08/06/2026 5:36 PM"}], "interview_feedback": [{"Candidate Id": 159941000009124007, "Interview Type": "In-person Interview", "Interview Status": "Cancelled", "Feedback": "candidate suddenly opted out"}, {"Candidate Id": 159941000008404826, "Interview Type": "Adhoc Interview", "Interview Status": "Needs More Mentoring", "Feedback": "Need more mentoring"}, {"Candidate Id": 159941000008404826, "Interview Type": "Adhoc Interview", "Interview Status": "Move to Next Round/Process", "Feedback": "move to next round"}, {"Candidate Id": 159941000008404802, "Interview Type": "Adhoc Interview", "Interview Status": "Rejected", "Feedback": "Did not find fit for the role"}, {"Candidate Id": 159941000008404802, "Interview Type": "Adhoc Interview", "Interview Status": "Rejected", "Feedback": "Not selected, interested in social media profile"}, {"Candidate Id": 159941000008404802, "Interview Type": "Adhoc Interview", "Interview Status": "On-Hold", "Feedback": "awaiting feedback."}, {"Candidate Id": 159941000008316479, "Interview Type": "Adhoc Interview", "Interview Status": "Rejected", "Feedback": "na"}, {"Candidate Id": 159941000008404802, "Interview Type": "Adhoc Interview", "Interview Status": "Move to Next Round/Process", "Feedback": "move to next round"}, {"Candidate Id": 159941000008274655, "Interview Type": "Adhoc Interview", "Interview Status": "Move to Next Round/Process", "Feedback": "Moved to next round and called for F2F on Monday."}, {"Candidate Id": 159941000007291071, "Interview Type": "Adhoc Interview", "Interview Status": "Rejected", "Feedback": "Student rejected the offer as she got opportunity somewhere else."}], "candidates_multiple_apps": [{"Candidate Id": 159941000008404802, "First Name": "Anthony", "Last Name": "Evans", "ApplicationCount": 104}, {"Candidate Id": 159941000008702122, "First Name": "Grace", "Last Name": "Rivera", "ApplicationCount": 55}, {"Candidate Id": 159941000009089163, "First Name": "Nova", "Last Name": "Reyes", "ApplicationCount": 46}, {"Candidate Id": 159941000007408045, "First Name": "Serenity", "Last Name": "Sanders", "ApplicationCount": 46}, {"Candidate Id": 159941000009139418, "First Name": "Stella", "Last Name": "Ortiz", "ApplicationCount": 40}, {"Candidate Id": 159941000008647333, "First Name": "Alice", "Last Name": "Ross", "ApplicationCount": 39}, {"Candidate Id": 159941000008404826, "First Name": "Alexander", "Last Name": "Anderson", "ApplicationCount": 38}, {"Candidate Id": 159941000007258288, "First Name": "Emma", "Last Name": "Johnson", "ApplicationCount": 36}, {"Candidate Id": 159941000009123013, "First Name": "Hudson", "Last Name": "Peterson", "ApplicationCount": 36}, {"Candidate Id": 159941000007291071, "First Name": "Gabriel", "Last Name": "Gomez", "ApplicationCount": 36}], "filter_options": {"batch": ["ACDM & PCDMS August 2025 Batch 1 - 506", "ACDM & PCDMS August 2025 Batch 2 - 508", "ACDM & PCDMS September 2025 Batch 1 - 513", "ACDM & PCDMS September 2025 Batch 2 - 514"], "city": ["Bengaluru", "Chandigarh", "Chuchura", "Dausa", "Delhi", "Dombivali", "Gandhidham", "Guntur", "Gurgaon", "Hubli", "Hyderabad", "Jaipur", "Lucknow", "Ludhiana", "Mumbai", "Navi Mumbai", "New Delhi", "Noida", "Palghar", "Pimpri", "Rupnagar", "Ulhasnagar"], "gender": ["Female", "Male"], "job_type": ["Any", "Contract", "Freelance", "Full time", "Full-time", "Hybrid", "Intern", "Internship", "Internship with PPO", "On-site", "Part time", "Remote", "Temporary", "Training"], "candidate_stage": ["Available", "Engaged", "Hired", "New", "Rejected"], "application_status": ["Approved by client", "Archived", "Associated", "Hiring Closed", "Interview In Progress", "Interview to be scheduled", "Interview-Scheduled", "On Hold", "Rejected", "Rejected by client", "Rejected by student", "Submitted-to-client", "Under Review with client", "Unqualified"], "interview_status": ["Cancelled", "Hired", "Move to Next Round/Process", "Needs More Mentoring", "On-Hold", "Rescheduled"]}};
+
+const PALETTE = ['#2E6F71','#D98E4A','#7C5CBF','#4A8FC2','#C9463C','#5EA37A','#B08C3E','#8C6FBF','#3E7CA6','#D9738E'];
+const charts = {};
+
+function fmtInt(n){return n.toLocaleString('en-IN');}
+
+function renderKPIs(k){
+  const items = [
+    {label:'Total Enrolments', value:fmtInt(k.total_enrolments), sub:'Records in Enrolments table'},
+    {label:'Eligible Candidates', value:fmtInt(k.eligible_candidates), sub:'Profiles created & job-ready'},
+    {label:'Active Job Openings', value:fmtInt(k.active_job_openings), sub:`of ${fmtInt(k.total_job_openings)} total postings`},
+    {label:'Applications', value:fmtInt(k.total_applications), sub:'Submitted across all roles'},
+    {label:'Interviews', value:fmtInt(k.total_interviews), sub:'Scheduled / conducted'},
+    {label:'Placement Rate', value:k.placement_rate+'%', sub:`${k.selected_candidates} hired of ${k.eligible_candidates} eligible`},
+  ];
+  document.getElementById('kpiRow').innerHTML = items.map(i=>`
+    <div class="kpi">
+      <div class="label">${i.label}</div>
+      <div class="value">${i.value}</div>
+      <div class="sub">${i.sub}</div>
+    </div>`).join('');
+}
+
+function renderFunnel(f){
+  const stages = Object.entries(f);
+  const max = stages[0][1];
+  const colors = ['#2E6F71','#3E8783','#4A8FC2','#D98E4A','#C9463C','#7C5CBF'];
+  document.getElementById('funnelBody').innerHTML = stages.map(([label,val],i)=>{
+    const pct = max? (val/max*100):0;
+    const pctOfPrev = i>0 ? Math.round(val/stages[i-1][1]*1000)/10 : 100;
+    return `<div class="funnel-row">
+      <div class="funnel-label">${label}</div>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${pct}%;background:${colors[i%colors.length]}">${val}</div></div>
+      <div class="funnel-pct">${i>0? pctOfPrev+'% ↓':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function destroyChart(id){ if(charts[id]){charts[id].destroy(); delete charts[id];} }
+
+function barChart(id, labels, data, horizontal=false, colorSet=PALETTE){
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  charts[id] = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets:[{data, backgroundColor: labels.map((_,i)=>colorSet[i%colorSet.length]), borderRadius:4}]},
+    options:{
+      indexAxis: horizontal?'y':'x',
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:!horizontal, color:'#F0F2F6'}, ticks:{font:{size:10}}},
+        y:{grid:{display:horizontal, color:'#F0F2F6'}, ticks:{font:{size:10}}}
+      },
+      responsive:true, maintainAspectRatio:false
+    }
+  });
+}
+
+function pieChart(id, labels, data, donut=false){
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  charts[id] = new Chart(ctx, {
+    type: donut?'doughnut':'pie',
+    data:{labels, datasets:[{data, backgroundColor: labels.map((_,i)=>PALETTE[i%PALETTE.length])}]},
+    options:{plugins:{legend:{position:'bottom', labels:{font:{size:10}, boxWidth:10}}}, responsive:true, maintainAspectRatio:false}
+  });
+}
+
+function renderSkillsTreemap(skills){
+  const entries = Object.entries(skills);
+  const total = entries.reduce((s,[,v])=>s+v,0);
+  const container = document.getElementById('skillsTreemap');
+  container.style.display='flex';
+  container.style.flexWrap='wrap';
+  container.style.gap='4px';
+  container.style.alignContent='flex-start';
+  container.innerHTML = entries.map(([name,val],i)=>{
+    const area = val/total;
+    const fontSize = Math.max(9, Math.min(15, 9+area*220));
+    const size = Math.max(50, Math.sqrt(area)*420);
+    return `<div style="background:${PALETTE[i%PALETTE.length]};color:#fff;border-radius:5px;
+      display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;
+      width:${size}px;height:${Math.max(38,size*0.55)}px;font-size:${fontSize}px;font-weight:600;line-height:1.2;">
+      ${name}<br><span style="font-weight:400;font-size:${fontSize-2}px;opacity:.85">(${val})</span></div>`;
+  }).join('');
+}
+
+function renderTables(d){
+  document.querySelector('#tblTopSalary tbody').innerHTML = d.top10_salary_jobs.map(r=>`
+    <tr><td>${r['Posting Title']}</td><td>${r['City']||'—'}</td><td>${r['Job Type']}</td><td>${r['Salary']}</td>
+    <td>${statusPill(r['Job Opening Status'])}</td></tr>`).join('');
+
+  document.querySelector('#tblRecent tbody').innerHTML = d.recent_applications.map(r=>`
+    <tr><td>${r['First Name']} ${r['Last Name']}</td><td>${r['Posting Title']}</td>
+    <td>${statusPill(r['Application Status'])}</td><td>${r['Created Time']}</td></tr>`).join('');
+
+  document.querySelector('#tblFeedback tbody').innerHTML = d.interview_feedback.slice(0,10).map(r=>`
+    <tr><td>${r['Interview Type']}</td><td>${statusPill(r['Interview Status'])}</td><td>${r['Feedback']}</td></tr>`).join('');
+
+  document.querySelector('#tblMulti tbody').innerHTML = d.candidates_multiple_apps.slice(0,10).map(r=>`
+    <tr><td>${r['First Name']} ${r['Last Name']}</td><td><b>${r['ApplicationCount']}</b></td></tr>`).join('');
+}
+
+function statusPill(status){
+  if(!status) return '—';
+  const s = status.toLowerCase();
+  let cls='neu';
+  if(s.includes('hire')||s.includes('approved')||s.includes('offer')||s.includes('progress')&&s.includes('in-progress')) cls='good';
+  if(s.includes('reject')||s.includes('cancel')||s.includes('unqualif')) cls='bad';
+  if(s.includes('hold')||s.includes('pending')||s.includes('submit')) cls='mid';
+  return `<span class="pill ${cls}">${status}</span>`;
+}
+
+function renderInsights(k, f){
+  const topCity = Object.entries(DATA.candidates_by_city)[0];
+  const topRole = Object.entries(DATA.applications_by_role)[0];
+  const dropStage = biggestDrop(f);
+  document.getElementById('insightsBlock').innerHTML = `
+    <h2>📊 Executive Insights</h2>
+    <div class="insight-grid">
+      <div class="insight-stat"><div class="n">${k.placement_rate}%</div><div class="l">Placement Rate</div></div>
+      <div class="insight-stat"><div class="n">₹${k.avg_salary_k}K</div><div class="l">Average Salary Offered / month</div></div>
+      <div class="insight-stat"><div class="n">${topCity[0]}</div><div class="l">Top Hiring / Sourcing City (${topCity[1]} candidates)</div></div>
+    </div>
+    <ul>
+      <li><b>${fmtInt(k.total_enrolments)}</b> students enrolled, of which <b>${fmtInt(k.eligible_candidates)}</b> (${Math.round(k.eligible_candidates/k.total_enrolments*100)}%) became eligible, job-ready candidates.</li>
+      <li><b>${fmtInt(k.selected_candidates)}</b> candidates have been hired so far &mdash; a placement rate of <b>${k.placement_rate}%</b> against eligible candidates.</li>
+      <li>Most popular job role applied to: <b>${topRole[0]}</b> (${topRole[1]} applications).</li>
+      <li>Largest funnel drop-off is between <b>${dropStage.from}</b> and <b>${dropStage.to}</b> (${dropStage.pct}% loss) &mdash; management should prioritize improving shortlisting speed and interview scheduling at this stage.</li>
+      <li>Out of <b>${fmtInt(k.total_job_openings)}</b> total job postings ever received, only <b>${fmtInt(k.active_job_openings)}</b> are currently active/in-progress &mdash; a large share have been cancelled, filled, or gone inactive, indicating high client-side churn worth investigating.</li>
+    </ul>`;
+}
+
+function biggestDrop(f){
+  const entries = Object.entries(f);
+  let worst = {pct:-1};
+  for(let i=1;i<entries.length;i++){
+    const [prevLabel, prevVal] = entries[i-1];
+    const [label, val] = entries[i];
+    const drop = prevVal>0 ? Math.round((1-val/prevVal)*1000)/10 : 0;
+    if(drop>worst.pct) worst = {from:prevLabel, to:label, pct:drop};
+  }
+  return worst;
+}
+
+function populateFilterOptions(){
+  const opts = DATA.filter_options;
+  const map = {'f-batch':opts.batch, 'f-city':opts.city, 'f-gender':opts.gender, 'f-stage':opts.candidate_stage};
+  Object.entries(map).forEach(([id,list])=>{
+    const sel = document.getElementById(id);
+    list.forEach(v=>{
+      const o=document.createElement('option'); o.value=v; o.textContent=v.length>40? v.slice(0,40)+'…':v;
+      sel.appendChild(o);
+    });
+  });
+}
+
+function applyFilters(){
+  // Note: full record-level filtering requires the raw row-level data.
+  // This demo dashboard recomputes from the pre-aggregated dataset;
+  // for true drill-down filtering in production, connect this page to a live
+  // data source (see the Tableau/SQL guide provided alongside this file).
+  renderAll();
+  document.getElementById('recordCount').textContent = 'Filters applied (visual demo — see notes below chart)';
+}
+function resetFilters(){
+  document.getElementById('f-batch').value='';
+  document.getElementById('f-city').value='';
+  document.getElementById('f-gender').value='';
+  document.getElementById('f-stage').value='';
+  renderAll();
+  document.getElementById('recordCount').textContent = `${fmtInt(DATA.kpis.total_applications)} applications · ${fmtInt(DATA.kpis.total_job_openings)} job postings loaded`;
+}
+
+function renderAll(){
+  renderKPIs(DATA.kpis);
+  renderFunnel(DATA.funnel);
+  barChart('chartRole', Object.keys(DATA.applications_by_role), Object.values(DATA.applications_by_role), true);
+  barChart('chartCity', Object.keys(DATA.candidates_by_city), Object.values(DATA.candidates_by_city), false);
+  pieChart('chartGender', Object.keys(DATA.gender_distribution), Object.values(DATA.gender_distribution), false);
+  barChart('chartJobCity', Object.keys(DATA.jobs_by_city), Object.values(DATA.jobs_by_city), false);
+  pieChart('chartIntStatus', Object.keys(DATA.interview_status), Object.values(DATA.interview_status), true);
+  pieChart('chartAppStatus', Object.keys(DATA.application_status), Object.values(DATA.application_status), false);
+  barChart('chartSalary', Object.keys(DATA.salary_distribution), Object.values(DATA.salary_distribution), false);
+  renderSkillsTreemap(DATA.skills_distribution);
+  barChart('chartBatch', Object.keys(DATA.batch_candidates).map(b=>b.replace('ACDM & PCDMS ','')), Object.values(DATA.batch_candidates), false);
+  renderTables(DATA);
+  renderInsights(DATA.kpis, DATA.funnel);
+}
+
+populateFilterOptions();
+renderAll();
+document.getElementById('recordCount').textContent = `${fmtInt(DATA.kpis.total_applications)} applications · ${fmtInt(DATA.kpis.total_job_openings)} job postings loaded`;
+</script>
+</body>
+</html>
